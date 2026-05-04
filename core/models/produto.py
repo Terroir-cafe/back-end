@@ -20,4 +20,4 @@ class Produto(models.Model):
     )
 
     def __str__(self):
-        return f'{self.nome} - {self.categoria.nome} - {self.preco} - {self.descricao}'
+        return f'{self.nome} - {self.categoria.nome} - {self.preco}'
