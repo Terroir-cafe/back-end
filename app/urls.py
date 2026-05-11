@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import (
@@ -12,11 +14,15 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from core.views import UserRegistrationView, UserViewSet
+from core.views import CategoriaViewSet, EstoqueViewSet, ProdutoViewSet, UserRegistrationView, UserViewSet
+from uploader.router import router as uploader_router
 
 router = DefaultRouter()
 
 router.register(r'usuarios', UserViewSet, basename='usuarios')
+router.register(r'produtos', ProdutoViewSet, basename='produtos')
+router.register(r'estoque', EstoqueViewSet, basename='estoque')
+router.register(r'categorias', CategoriaViewSet, basename='categorias')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,6 +38,7 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name='schema'),
         name='redoc',
     ),
+    path('api/media/', include(uploader_router.urls)),
     # Autenticação JWT
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
@@ -41,3 +48,4 @@ urlpatterns = [
     # API
     path('api/', include(router.urls)),
 ]
+urlpatterns += static(settings.MEDIA_ENDPOINT, document_root=settings.MEDIA_ROOT)
