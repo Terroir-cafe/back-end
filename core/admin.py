@@ -6,9 +6,30 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from core import models
+from core.models import Categoria, Estoque, Produto, User
 
 
+@admin.register(Produto)
+class ProdutoAdmin(admin.ModelAdmin):
+    list_display = ['id', 'nome', 'preco', 'categoria']
+    list_filter = ['categoria']
+    search_fields = ['nome']
+
+
+@admin.register(Categoria)
+class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ['id', 'nome']
+    search_fields = ['nome']
+
+
+@admin.register(Estoque)
+class EstoqueAdmin(admin.ModelAdmin):
+    list_display = ['id', 'produto', 'quantidade']
+    list_filter = ['produto']
+    search_fields = ['produto__nome']
+
+
+@admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """Define the admin pages for users."""
 
@@ -16,7 +37,8 @@ class UserAdmin(BaseUserAdmin):
     list_display = ['email', 'name']
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        (_('Personal Info'), {'fields': ('name',)}),
+                (_('Personal Info'), {'fields': ('name', 'foto')}),# inclua a foto aqui
+
         (
             _('Permissions'),
             {
@@ -49,9 +71,3 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
-
-
-admin.site.register(models.User, UserAdmin)
-admin.site.register(models.Produto)
-admin.site.register(models.Categoria)
-admin.site.register(models.Estoque)
