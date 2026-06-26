@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from core.models import Categoria, Estoque, Produto, User
+from core.models import Categoria, Estoque, Marca, Produto, User
 
 
 @admin.register(Produto)
@@ -18,6 +18,12 @@ class ProdutoAdmin(admin.ModelAdmin):
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ['id', 'nome']
+    search_fields = ['nome']
+
+
+@admin.register(Marca)
+class MarcaAdmin(admin.ModelAdmin):
     list_display = ['id', 'nome']
     search_fields = ['nome']
 
@@ -37,8 +43,7 @@ class UserAdmin(BaseUserAdmin):
     list_display = ['email', 'name']
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-                (_('Personal Info'), {'fields': ('name', 'foto')}),# inclua a foto aqui
-
+        (_('Personal Info'), {'fields': ('name', 'foto')}),  # inclua a foto aqui
         (
             _('Permissions'),
             {
