@@ -11,9 +11,9 @@ from core.models import Categoria, Estoque, Marca, Produto, User
 
 @admin.register(Produto)
 class ProdutoAdmin(admin.ModelAdmin):
-    list_display = ['id', 'nome', 'preco', 'categoria']
-    list_filter = ['categoria']
-    search_fields = ['nome']
+    list_display = ['id', 'nome', 'preco', 'categoria', 'marca']
+    list_filter = ['categoria', 'marca']
+    search_fields = ['nome', 'marca__nome']
 
 
 @admin.register(Categoria)
