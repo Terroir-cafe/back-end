@@ -29,6 +29,7 @@ class ProdutoListSerializer(ModelSerializer):
         write_only=True,
     )
     capa = ImageSerializer(required=False, read_only=True)
+
     class Meta:
         model = Produto
         fields = '__all__'
