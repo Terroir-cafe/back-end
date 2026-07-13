@@ -12,6 +12,7 @@ class Produto(models.Model):
     preco = models.DecimalField(max_digits=10, decimal_places=2)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='produtos', null=True, blank=True)
     marca = models.ForeignKey(Marca, on_delete=models.PROTECT, related_name='produtos', null=True, blank=True)
+    quantidade = models.PositiveIntegerField(default=0)
     capa = models.ForeignKey(
         Image,
         related_name='+',
@@ -22,4 +23,4 @@ class Produto(models.Model):
     )
 
     def __str__(self):
-        return f'{self.nome} - {self.categoria.nome} - {self.preco} - {self.marca}'
+        return f'{self.nome} - {self.categoria.nome} - {self.preco} - {self.marca} - {self.quantidade}'
