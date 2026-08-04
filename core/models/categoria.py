@@ -1,4 +1,5 @@
 from django.db import models
+from uploader.models import Image
 
 
 class Categoria(models.Model):
@@ -6,3 +7,11 @@ class Categoria(models.Model):
 
     def __str__(self):
         return self.nome
+    capa = models.ForeignKey(
+        Image,
+        related_name='+',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        default=None,
+    )
