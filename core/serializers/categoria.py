@@ -6,21 +6,6 @@ from uploader.serializers import ImageSerializer
 
 
 class CategoriaSerializer(ModelSerializer):
-    class Meta:
-        model = Categoria
-        fields = '__all__'
-
-
-class LivroRetrieveSerializer(ModelSerializer):
-    capa = ImageSerializer(required=False)
-
-    class Meta:
-        model = Categoria
-        fields = '__all__'
-        depth = 1
-
-
-class CategoriaSerializer(ModelSerializer):
     capa_attachment_key = SlugRelatedField(
         source='capa',
         queryset=Image.objects.all(),

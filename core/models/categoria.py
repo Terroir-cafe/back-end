@@ -8,6 +8,7 @@ class Categoria(models.Model):
 
     def __str__(self):
         return self.nome
+
     capa = models.ForeignKey(
         Image,
         related_name='+',
