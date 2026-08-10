@@ -27,6 +27,6 @@ class ItensCompra(models.Model):
     def total(self):
         # total = 0
         # for item in self.itens.all():
-        #     total += item.livro.preco * item.quantidade
+        #     total += item.produto.preco * item.quantidade
         # return total
-        return sum(item.livro.preco * item.quantidade for item in self.itens.all())
+        return sum(item.produto.preco * item.quantidade for item in self.itens.all())
