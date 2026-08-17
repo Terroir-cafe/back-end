@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from core.models import Categoria, Estoque, Marca, Produto, User
+from core.models import Categoria, Marca, Produto, User
 
 
 @admin.register(Produto)
@@ -26,13 +26,6 @@ class CategoriaAdmin(admin.ModelAdmin):
 class MarcaAdmin(admin.ModelAdmin):
     list_display = ['id', 'nome']
     search_fields = ['nome']
-
-
-@admin.register(Estoque)
-class EstoqueAdmin(admin.ModelAdmin):
-    list_display = ['id', 'produto', 'quantidade']
-    list_filter = ['produto']
-    search_fields = ['produto__nome']
 
 
 @admin.register(User)
