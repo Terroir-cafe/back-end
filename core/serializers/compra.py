@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework.serializers import (
     CharField,
     CurrentUserDefault,
@@ -13,7 +14,7 @@ from core.models import Compra, ItensCompra
 class ItensCompraCreateUpdateSerializer(ModelSerializer):
     class Meta:
         model = ItensCompra
-        fields = ('produto', 'quantidade')
+        fields = ('produto', 'quantidade', 'preco')  # mudou
 
     def validate_quantidade(self, quantidade):
         if quantidade <= 0:
@@ -30,11 +31,11 @@ class ItensCompraSerializer(ModelSerializer):
     total = SerializerMethodField()
 
     def get_total(self, instance):
-        return instance.produto.preco * instance.quantidade
+        return instance.quantidade * instance.preco
 
     class Meta:
         model = ItensCompra
-        fields = ('produto', 'quantidade', 'total')
+        fields = ('produto', 'quantidade', 'total', 'preco')
         depth = 1
 
 
@@ -43,7 +44,7 @@ class ItensCompraListSerializer(ModelSerializer):
 
     class Meta:
         model = ItensCompra
-        fields = ('quantidade', 'produto')
+        fields = ('quantidade', 'produto', 'preco')
         depth = 1
 
 
@@ -63,20 +64,25 @@ class CompraCreateUpdateSerializer(ModelSerializer):
         model = Compra
         fields = ('id', 'usuario', 'itens')
 
+    @transaction.atomic
     def create(self, validated_data):
-        itens_data = validated_data.pop('itens')
+        itens = validated_data.pop('itens')
         compra = Compra.objects.create(**validated_data)
-        for item_data in itens_data:
-            ItensCompra.objects.create(compra=compra, **item_data)
+        for item in itens:
+            item['preco'] = item['produto'].preco  # preço do produto no momento da compra
+            ItensCompra.objects.create(compra=compra, **item)
         compra.save()
         return compra
 
+    @transaction.atomic
     def update(self, compra, validated_data):
-        itens_data = validated_data.pop('itens', [])
-        if itens_data:
+        itens = validated_data.pop('itens')
+        if itens:
             compra.itens.all().delete()
-            for item_data in itens_data:
-                ItensCompra.objects.create(compra=compra, **item_data)
+            for item in itens:
+                item['preco'] = item['livro'].preco  # grava o preço histórico
+                ItensCompra.objects.create(compra=compra, **item)
+        compra.save()
         return super().update(compra, validated_data)
 
 
