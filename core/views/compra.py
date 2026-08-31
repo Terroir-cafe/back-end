@@ -5,7 +5,6 @@ from core.serializers import CompraCreateUpdateSerializer, CompraListSerializer,
 
 
 class CompraViewSet(ModelViewSet):
-
     def get_queryset(self):
         usuario = self.request.user
         if usuario.is_superuser:
