@@ -1,9 +1,19 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+
+from drf_spectacular.utils import extend_schema
 from core.models import Produto
-from core.serializers import ProdutoListSerializer, ProdutoRetrieveSerializer, ProdutoSerializer
+from core.serializers import (
+    ProdutoAlterarPrecoSerializer,
+    ProdutoListSerializer,
+    ProdutoRetrieveSerializer,
+    ProdutoSerializer,
+)
 
 
 class ProdutoViewSet(ModelViewSet):
@@ -21,3 +31,25 @@ class ProdutoViewSet(ModelViewSet):
         elif self.action == 'retrieve':
             return ProdutoRetrieveSerializer
         return ProdutoSerializer
+
+
+@extend_schema(
+    request=ProdutoAlterarPrecoSerializer,
+    responses={200: None},
+    description="Altera o preço de um livro específico.",
+    summary="Alterar preço do livro",
+)
+
+@action(detail=True, methods=['patch'])
+def alterar_preco(self, request, pk=None):
+    produto = self.get_object()
+
+    serializer = ProdutoAlterarPrecoSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    produto.preco = serializer.validated_data['preco']
+    produto.save()
+
+    return Response(
+        {'detail': f'Preço do produto "{produto.nome}" atualizado para {produto.preco}.'}, status=status.HTTP_200_OK
+    )
