@@ -16,10 +16,10 @@ class ItensCompraInline(admin.TabularInline):
 
 @admin.register(Compra)
 class CompraAdmin(admin.ModelAdmin):
-    @admin.display(description="Total")
+    @admin.display(description='Total')
     def total_formatado(self, obj):
         """Exibe R$ 123,45 em vez de 123.45."""
-        return f"R$ {obj.total:.2f}"
+        return f'R$ {obj.total:.2f}'
 
     list_display = ('usuario', 'status', 'total_formatado', 'data')  # mostra na listagem
     ordering = ('usuario', 'status', 'data')  # ordena por esses campos
@@ -27,7 +27,10 @@ class CompraAdmin(admin.ModelAdmin):
     list_filter = ('status', 'data')  # filtros laterais
     list_per_page = 10
     inlines = [ItensCompraInline]
-    readonly_fields = ('data', 'total_formatado',)  # campos somente leitura'
+    readonly_fields = (
+        'data',
+        'total_formatado',
+    )  # campos somente leitura'
 
 
 @admin.register(Produto)
