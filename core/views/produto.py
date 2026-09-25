@@ -34,8 +34,8 @@ class ProdutoViewSet(ModelViewSet):
     @extend_schema(
         request=ProdutoAlterarPrecoSerializer,
         responses={200: None},
-        description='Altera o preço de um livro específico.',
-        summary='Alterar preço do livro',
+        description='Altera o preço de um produto específico.',
+        summary='Alterar preço do produto',
     )
     @action(detail=True, methods=['patch'])
     def alterar_preco(self, request, pk=None):
