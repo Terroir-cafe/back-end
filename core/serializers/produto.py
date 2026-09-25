@@ -1,5 +1,6 @@
 from rest_framework.serializers import (
     DecimalField,
+    IntegerField,
     ModelSerializer,
     Serializer,
     SlugRelatedField,
@@ -58,3 +59,11 @@ class ProdutoRetrieveSerializer(ModelSerializer):
         model = Produto
         fields = '__all__'
         depth = 1
+
+
+class ProdutoMaisVendidoSerializer(ModelSerializer):
+    total_vendidos = IntegerField()
+
+    class Meta:
+        model = Produto
+        fields = ('id', 'nome', 'total_vendidos')

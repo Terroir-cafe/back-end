@@ -4,6 +4,7 @@ from .produto import (
     ProdutoListSerializer,
     ProdutoRetrieveSerializer,
     ProdutoSerializer,
+    ProdutoMaisVendidoSerializer,
 )
 from .categoria import CategoriaSerializer
 from .marca import MarcaSerializer
@@ -14,4 +15,5 @@ from .compra import (
     ItensCompraSerializer,
     ItensCompraListSerializer,
     CompraListSerializer,
+
 )
