@@ -67,3 +67,15 @@ class ProdutoMaisVendidoSerializer(ModelSerializer):
     class Meta:
         model = Produto
         fields = ('id', 'nome', 'total_vendidos')
+
+
+class ProdutoAjustarEstoqueSerializer(Serializer):
+    quantidade = IntegerField()
+
+    def validate_quantidade(self, value):
+        produto = self.context.get('produto')
+        if produto:
+            nova_quantidade = produto.quantidade + value
+            if nova_quantidade < 0:
+                raise ValidationError('A quantidade em estoque não pode ser negativa.')
+        return value

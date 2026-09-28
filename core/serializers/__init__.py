@@ -5,6 +5,7 @@ from .produto import (
     ProdutoRetrieveSerializer,
     ProdutoSerializer,
     ProdutoMaisVendidoSerializer,
+    ProdutoAjustarEstoqueSerializer,
 )
 from .categoria import CategoriaSerializer
 from .marca import MarcaSerializer

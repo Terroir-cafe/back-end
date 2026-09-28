@@ -1,19 +1,20 @@
 from django.db.models import Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import Produto, Compra
+from core.models import Compra, Produto
 from core.serializers import (
+    ProdutoAjustarEstoqueSerializer,
     ProdutoAlterarPrecoSerializer,
     ProdutoListSerializer,
+    ProdutoMaisVendidoSerializer,
     ProdutoRetrieveSerializer,
     ProdutoSerializer,
-    ProdutoMaisVendidoSerializer,
 )
 
 
@@ -55,21 +56,54 @@ class ProdutoViewSet(ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
     @action(detail=False, methods=['get'])
     def mais_vendidos(self, request):
-        produtos = Produto.objects.annotate(
-            total_vendidos=Sum(
-                'itens_compra__quantidade',
-                filter=Q(itens_compra__compra__status=Compra.StatusCompra.FINALIZADO)
+        produtos = (
+            Produto.objects
+            .annotate(
+                total_vendidos=Sum(
+                    'itens_compra__quantidade', filter=Q(itens_compra__compra__status=Compra.StatusCompra.FINALIZADO)
+                )
             )
-        ).filter(total_vendidos__gt=10).order_by('-total_vendidos')
+            .filter(total_vendidos__gt=10)
+            .order_by('-total_vendidos')
+        )
 
         serializer = ProdutoMaisVendidoSerializer(produtos, many=True)
 
         if not serializer.data:
-            return Response(
-                {"detail": "Nenhum produto excedeu 10 vendas."},
-                status=status.HTTP_200_OK
-            )
+            return Response({'detail': 'Nenhum produto excedeu 10 vendas.'}, status=status.HTTP_200_OK)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary='Ajusta o estoque de um produto',
+        description='Aumenta ou diminui o estoque; impede resultado negativo.',
+        request=ProdutoAjustarEstoqueSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=None,
+                description='Estoque ajustado com sucesso.',
+                examples=[{'status': 'Quantidade ajustada com sucesso', 'novo_estoque': 30}],
+            ),
+            400: OpenApiResponse(
+                description='Erro de validação',
+                examples=[{'quantidade': 'A quantidade em estoque não pode ser negativa.'}],
+            ),
+        },
+    )
+    @action(detail=True, methods=['post'])
+    def ajustar_estoque(self, request, pk=None):
+        produto = self.get_object()
+
+        serializer = ProdutoAjustarEstoqueSerializer(data=request.data, context={'produto': produto})
+        serializer.is_valid(raise_exception=True)
+
+        quantidade_ajuste = serializer.validated_data['quantidade']
+        produto.quantidade += quantidade_ajuste
+        produto.save()
+
+        return Response(
+            {'status': 'Quantidade ajustada com sucesso', 'novo_estoque': produto.quantidade}, status=status.HTTP_200_OK
+        )
