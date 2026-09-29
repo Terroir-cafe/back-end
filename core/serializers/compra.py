@@ -72,11 +72,23 @@ class CompraCreateUpdateSerializer(ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         itens = validated_data.pop('itens')
-        compra = Compra.objects.create(**validated_data)
+        usuario = validated_data['usuario']
+
+        compra, criada = Compra.objects.get_or_create(
+            usuario=usuario, status=Compra.StatusCompra.CARRINHO, defaults=validated_data
+        )
+
         for item in itens:
-            item['preco'] = item['produto'].preco  # preço do produto no momento da compra
-            ItensCompra.objects.create(compra=compra, **item)
-        compra.save()
+            item_existente = compra.itens.filter(produto=item['produto']).first()
+
+            if item_existente:
+                item_existente.quantidade += item['quantidade']
+                item_existente.preco = item['produto'].preco
+                item_existente.save()
+            else:
+                item['preco'] = item['produto'].preco
+                ItensCompra.objects.create(compra=compra, **item)
+
         return compra
 
     @transaction.atomic

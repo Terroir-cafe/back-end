@@ -26,6 +26,7 @@ class ProdutoViewSet(ModelViewSet):
     filterset_fields = ['categoria__nome', 'marca__nome', 'preco', 'quantidade']
     ordering_fields = ['preco', 'quantidade']
     search_fields = ['nome', 'descricao']
+    ordering = ['nome']
 
     def get_serializer_class(self):
         if self.action == 'list':
