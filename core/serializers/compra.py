@@ -1,4 +1,5 @@
 from django.db import transaction
+
 from rest_framework.serializers import (
     CharField,
     CurrentUserDefault,
@@ -35,8 +36,14 @@ class ItensCompraCreateUpdateSerializer(ModelSerializer):
         return quantidade
 
     def validate(self, item):
-        if item['quantidade'] > item['produto'].quantidade:
+        produto = item['produto']
+
+        if produto.preco <= 0:
+            raise ValidationError('Este produto não pode ser comprado: preço inválido.')
+
+        if item['quantidade'] > produto.quantidade:
             raise ValidationError('Quantidade de itens maior do que a quantidade em estoque.')
+
         return item
 
 
@@ -53,12 +60,11 @@ class CompraSerializer(ModelSerializer):
     usuario = CharField(source='usuario.email', read_only=True)
     status = CharField(source='get_status_display', read_only=True)
     data = DateTimeField(read_only=True)
-    tipo_pagamento = CharField(source='get_tipo_pagamento_display', read_only=True)  # novo campo
     itens = ItensCompraSerializer(many=True, read_only=True)
 
     class Meta:
         model = Compra
-        fields = ('id', 'usuario', 'status', 'total', 'data', 'tipo_pagamento', 'itens')
+        fields = ('id', 'usuario', 'status', 'total', 'data', 'itens')
 
 
 class CompraCreateUpdateSerializer(ModelSerializer):
@@ -67,13 +73,14 @@ class CompraCreateUpdateSerializer(ModelSerializer):
 
     class Meta:
         model = Compra
-        fields = ('id', 'usuario', 'itens')
+        fields = ('usuario', 'itens')  # 'id' saiu daqui na parte 39
 
     @transaction.atomic
     def create(self, validated_data):
         itens = validated_data.pop('itens')
         usuario = validated_data['usuario']
 
+        # só existe 1 carrinho (status CARRINHO) por usuário
         compra, criada = Compra.objects.get_or_create(
             usuario=usuario, status=Compra.StatusCompra.CARRINHO, defaults=validated_data
         )
@@ -82,6 +89,7 @@ class CompraCreateUpdateSerializer(ModelSerializer):
             item_existente = compra.itens.filter(produto=item['produto']).first()
 
             if item_existente:
+                # produto já está no carrinho: só incrementa a quantidade
                 item_existente.quantidade += item['quantidade']
                 item_existente.preco = item['produto'].preco
                 item_existente.save()
@@ -89,17 +97,18 @@ class CompraCreateUpdateSerializer(ModelSerializer):
                 item['preco'] = item['produto'].preco
                 ItensCompra.objects.create(compra=compra, **item)
 
+        compra.save()  # recalcula e grava o campo "total" (parte 40)
         return compra
 
     @transaction.atomic
     def update(self, compra, validated_data):
-        itens = validated_data.pop('itens')
+        itens = validated_data.pop('itens', [])
         if itens:
             compra.itens.all().delete()
             for item in itens:
-                item['preco'] = item['produto'].preco  # grava o preço histórico
+                item['preco'] = item['produto'].preco
                 ItensCompra.objects.create(compra=compra, **item)
-        compra.save()
+
         return super().update(compra, validated_data)
 
 

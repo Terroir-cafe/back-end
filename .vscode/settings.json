@@ -37,5 +37,6 @@
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
-  "discord.enabled": true
+  "discord.enabled": true,
+  "python.terminal.useEnvFile": true
 }
