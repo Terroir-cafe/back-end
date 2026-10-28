@@ -1,6 +1,6 @@
 from rest_framework.serializers import CharField, ModelSerializer, SlugRelatedField
 
-from core.models import User
+from core.models import User, Produto
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
 
@@ -28,6 +28,7 @@ class UserSerializer(ModelSerializer):
             'is_superuser',
             'last_login',
             'groups',
+            'favoritos',
         )
         depth = 1
 
@@ -41,3 +42,8 @@ class UserRegistrationSerializer(ModelSerializer):
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+class FavoritoSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('favoritos',)

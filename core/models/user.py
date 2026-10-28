@@ -11,6 +11,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from uploader.models import Image
+from .produto import Produto
 
 
 class UserManager(BaseUserManager):
@@ -72,3 +73,4 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         default=None,
     )
+    favoritos = models.ManyToManyField(Produto, related_name='favoritos', blank=True)
