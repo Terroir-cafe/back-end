@@ -1,6 +1,6 @@
 from rest_framework.serializers import CharField, ModelSerializer, SlugRelatedField
 
-from core.models import User, Produto
+from core.models import User
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
 
@@ -42,6 +42,7 @@ class UserRegistrationSerializer(ModelSerializer):
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
 
 class FavoritoSerializer(ModelSerializer):
     class Meta:

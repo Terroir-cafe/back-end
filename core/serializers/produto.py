@@ -7,7 +7,7 @@ from rest_framework.serializers import (
     ValidationError,
 )
 
-from core.models import Produto
+from core.models import HistoricoPreco, Produto
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
 
@@ -79,3 +79,9 @@ class ProdutoAjustarEstoqueSerializer(Serializer):
             if nova_quantidade < 0:
                 raise ValidationError('A quantidade em estoque não pode ser negativa.')
         return value
+
+
+class HistoricoPrecoSerializer(ModelSerializer):
+    class Meta:
+        model = HistoricoPreco
+        fields = ('preco', 'data')

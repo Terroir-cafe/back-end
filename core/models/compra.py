@@ -31,9 +31,9 @@ class Compra(models.Model):
             self.total = sum(item.preco * item.quantidade for item in self.itens.all())
         super().save(*args, **kwargs)
 
-    #@property
-    #def total(self):
-        #return sum(item.preco * item.quantidade for item in self.itens.all())
+    # @property
+    # def total(self):
+    # return sum(item.preco * item.quantidade for item in self.itens.all())
 
 
 class ItensCompra(models.Model):

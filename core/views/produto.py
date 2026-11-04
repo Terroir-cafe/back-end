@@ -4,12 +4,13 @@ from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
 
 from core.models import Compra, Produto
 from core.serializers import (
+    HistoricoPrecoSerializer,
     ProdutoAjustarEstoqueSerializer,
     ProdutoAlterarPrecoSerializer,
     ProdutoListSerializer,
@@ -109,16 +110,14 @@ class ProdutoViewSet(ModelViewSet):
         return Response(
             {'status': 'Quantidade ajustada com sucesso', 'novo_estoque': produto.quantidade}, status=status.HTTP_200_OK
         )
+
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def favoritar(self, request, pk=None):
         produto = self.get_object()
         usuario = request.user
 
         if usuario.favoritos.filter(pk=produto.pk).exists():
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={'status': 'Produto já está nos favoritos'}
-            )
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={'status': 'Produto já está nos favoritos'})
 
         usuario.favoritos.add(produto)
         return Response(status=status.HTTP_200_OK, data={'status': 'Produto favoritado'})
@@ -129,10 +128,13 @@ class ProdutoViewSet(ModelViewSet):
         usuario = request.user
 
         if not usuario.favoritos.filter(pk=produto.pk).exists():
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={'status': 'Produto não está nos favoritos'}
-            )
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={'status': 'Produto não está nos favoritos'})
 
         usuario.favoritos.remove(produto)
         return Response(status=status.HTTP_200_OK, data={'status': 'Produto removido dos favoritos'})
+
+    @action(detail=True, methods=['get'])
+    def historico(self, request, pk=None):
+        produto = self.get_object()
+        serializer = HistoricoPrecoSerializer(produto.historico_precos.all(), many=True)
+        return Response(serializer.data)
