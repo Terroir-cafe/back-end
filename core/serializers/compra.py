@@ -11,8 +11,11 @@ from rest_framework.serializers import (
 
 from core.models import Compra, ItensCompra
 
+from .produto import ProdutoListSerializer
+
 
 class ItensCompraSerializer(ModelSerializer):
+    produto = ProdutoListSerializer(read_only=True)
     total = SerializerMethodField()
 
     def get_total(self, instance):
@@ -21,7 +24,6 @@ class ItensCompraSerializer(ModelSerializer):
     class Meta:
         model = ItensCompra
         fields = ('produto', 'quantidade', 'preco', 'total')
-        depth = 1
 
 
 class ItensCompraCreateUpdateSerializer(ModelSerializer):
@@ -80,16 +82,20 @@ class CompraCreateUpdateSerializer(ModelSerializer):
         usuario = validated_data['usuario']
 
         # só existe 1 carrinho (status CARRINHO) por usuário
-        compra, criada = Compra.objects.get_or_create(
-            usuario=usuario, status=Compra.StatusCompra.CARRINHO, defaults=validated_data
-        )
+        compra = Compra.obter_carrinho(usuario, criar=True)
 
         for item in itens:
             item_existente = compra.itens.filter(produto=item['produto']).first()
 
             if item_existente:
                 # produto já está no carrinho: só incrementa a quantidade
-                item_existente.quantidade += item['quantidade']
+                nova_quantidade = item_existente.quantidade + item['quantidade']
+                if nova_quantidade > item['produto'].quantidade:
+                    raise ValidationError(
+                        f'Estoque insuficiente para "{item["produto"].nome}": '
+                        f'há apenas {item["produto"].quantidade} unidade(s) disponível(is).'
+                    )
+                item_existente.quantidade = nova_quantidade
                 item_existente.preco = item['produto'].preco
                 item_existente.save()
             else:
@@ -101,8 +107,8 @@ class CompraCreateUpdateSerializer(ModelSerializer):
 
     @transaction.atomic
     def update(self, compra, validated_data):
-        itens = validated_data.pop('itens', [])
-        if itens:
+        itens = validated_data.pop('itens', None)
+        if itens is not None:
             compra.itens.all().delete()
             for item in itens:
                 item['preco'] = item['produto'].preco

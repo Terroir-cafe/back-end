@@ -3,6 +3,8 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -11,6 +13,10 @@ from core.serializers import CompraCreateUpdateSerializer, CompraListSerializer,
 
 
 class CompraViewSet(ModelViewSet):
+    # Qualquer usuário logado pode montar o próprio carrinho
+    # (o get_queryset já garante que ele só enxerga as próprias compras).
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         usuario = self.request.user
         if usuario.is_superuser:
@@ -25,6 +31,38 @@ class CompraViewSet(ModelViewSet):
         if self.action in {'create', 'update', 'partial_update'}:
             return CompraCreateUpdateSerializer
         return CompraSerializer
+
+    @extend_schema(
+        request=None,
+        responses={200: CompraSerializer},
+        description='Retorna o carrinho em aberto do usuário logado (ou um carrinho vazio, sem criar nada).',
+        summary='Carrinho atual',
+    )
+    @action(detail=False, methods=['get'])
+    def carrinho(self, request):
+        compra = Compra.obter_carrinho(request.user)
+        if compra is None:
+            return Response({'id': None, 'status': 'Carrinho', 'total': '0.00', 'data': None, 'itens': []})
+        return Response(CompraSerializer(compra, context={'request': request}).data)
+
+    @extend_schema(responses={201: CompraSerializer}, summary='Adicionar itens ao carrinho')
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        compra = serializer.save()
+        # devolve o carrinho completo e atualizado, pronto para o front renderizar
+        return Response(CompraSerializer(compra, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={200: CompraSerializer}, summary='Substituir os itens do carrinho')
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        compra = self.get_object()
+        if compra.status != Compra.StatusCompra.CARRINHO:
+            raise ValidationError({'status': 'Só é possível alterar itens de uma compra que ainda é carrinho.'})
+        serializer = self.get_serializer(compra, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        compra = serializer.save()
+        return Response(CompraSerializer(compra, context={'request': request}).data)
 
     @extend_schema(
         request=None,

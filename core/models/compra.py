@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 
 from .produto import Produto
 from .user import User
@@ -25,6 +25,40 @@ class Compra(models.Model):
     data = models.DateTimeField(auto_now_add=True)
     tipo_pagamento = models.IntegerField(choices=TipoPagamento.choices, default=TipoPagamento.CARTAO_CREDITO)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    @classmethod
+    def obter_carrinho(cls, usuario, criar=False):
+        """Retorna o carrinho em aberto do usuário (ou None, se não existir).
+
+        Deve haver só um por usuário. Se por algum motivo existir mais de um,
+        junta os itens de todos no mais antigo e apaga os extras.
+        """
+        with transaction.atomic():
+            carrinhos = list(
+                cls.objects.select_for_update()
+                .filter(usuario=usuario, status=cls.StatusCompra.CARRINHO)
+                .order_by('id')
+            )
+
+            if not carrinhos:
+                return cls.objects.create(usuario=usuario) if criar else None
+
+            principal, *extras = carrinhos
+            for extra in extras:
+                for item in extra.itens.all():
+                    existente = principal.itens.filter(produto=item.produto).first()
+                    if existente:
+                        existente.quantidade += item.quantidade
+                        existente.save()
+                    else:
+                        item.compra = principal
+                        item.save()
+                extra.delete()
+
+            if extras:
+                principal.save()  # recalcula o total
+
+            return principal
 
     def save(self, *args, **kwargs):
         if self.pk:
