@@ -26,6 +26,11 @@ class UserViewSet(ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserRegistrationSerializer
+        return super().get_serializer_class()
+
     def get_queryset(self):
         if self.request.user.is_superuser:
             return self.queryset
