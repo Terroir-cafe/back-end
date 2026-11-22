@@ -70,7 +70,7 @@ class SincronizacaoView(APIView):
                 carrinho.is_valid(raise_exception=True)
                 carrinho.save()
             elif tipo == 'quantidade':
-                self.alterar_quantidade(usuario, dados)
+                self.alterar_quantidade(usuario, dados, request.headers.get('X-Push-Endpoint'))
             elif tipo == 'favorito':
                 produto = get_object_or_404(Produto, pk=dados['produto'])
                 if dados['favorito']:
@@ -96,7 +96,7 @@ class SincronizacaoView(APIView):
             return Response(UserSerializer(usuario, context=contexto).data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def alterar_quantidade(self, usuario, dados):
+    def alterar_quantidade(self, usuario, dados, endpoint_origem):
         quantidade = dados['quantidade']
         if quantidade:
             item_serializer = ItensCompraCreateUpdateSerializer(
@@ -115,7 +115,8 @@ class SincronizacaoView(APIView):
             ItensCompra.objects.update_or_create(
                 compra=compra, produto=produto, defaults={'quantidade': quantidade, 'preco': produto.preco},
             )
-            notificar_adicoes(compra, [({'produto': produto}, quantidade - (anterior.quantidade if anterior else 0))])
+            acrescimo = quantidade - (anterior.quantidade if anterior else 0)
+            notificar_adicoes(compra, [({'produto': produto}, acrescimo)], endpoint_origem=endpoint_origem)
         else:
             itens.delete()
         compra.save(update_fields=['total'])

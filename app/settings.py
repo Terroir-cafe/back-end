@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
+from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
 # Carrega as variáveis de ambiente do arquivo .env
@@ -24,6 +25,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
 ]
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = (*default_headers, 'x-push-endpoint')
 
 # Aplicações instaladas
 INSTALLED_APPS = [

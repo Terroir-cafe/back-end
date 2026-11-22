@@ -78,7 +78,7 @@ class Compra(models.Model):
             return principal
 
     @transaction.atomic
-    def save(self, *args, **kwargs):
+    def save(self, *args, endpoint_origem=None, **kwargs):
         anterior = None
         campos = kwargs.get('update_fields')
         alterando_status = campos is None or 'status' in campos
@@ -90,9 +90,9 @@ class Compra(models.Model):
             self.total = sum(item.preco * item.quantidade for item in self.itens.all())
         super().save(*args, **kwargs)
         if anterior is not None:
-            Compra.objects.get(pk=self.pk).notificar_status(anterior)
+            Compra.objects.get(pk=self.pk).notificar_status(anterior, endpoint_origem=endpoint_origem)
 
-    def notificar_status(self, anterior):
+    def notificar_status(self, anterior, *, endpoint_origem=None):
         if anterior == self.status:
             return
         status_anterior = dict(self.StatusCompra.choices).get(anterior, anterior)
@@ -103,7 +103,7 @@ class Compra(models.Model):
                 f'O status da compra #{self.pk} mudou de '
                 f'{status_anterior} para {self.get_status_display()}.'
             ),
-        )])
+        )], endpoint_origem=endpoint_origem)
 
 
 class ItensCompra(models.Model):

@@ -4,11 +4,11 @@ from django.db import models, transaction
 
 class NotificacaoManager(models.Manager):
     @transaction.atomic
-    def registrar(self, notificacoes):
+    def registrar(self, notificacoes, *, endpoint_origem=None):
         from core.push import enfileirar
 
         notificacoes = self.bulk_create(notificacoes)
-        enfileirar(notificacoes)
+        enfileirar(notificacoes, endpoint_origem=endpoint_origem)
 
 
 class Notificacao(models.Model):
