@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from core.views import CategoriaViewSet, CompraViewSet, MarcaViewSet, ProdutoViewSet, UserRegistrationView, UserViewSet
+from core.views.sincronizacao import SincronizacaoView
 from uploader.router import router as uploader_router
 
 router = DefaultRouter()
@@ -46,6 +47,7 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     # Registro de usuários
     path('api/registro/', UserRegistrationView.as_view(), name='user_registration'),
+    path('api/usuarios/sincronizar/', SincronizacaoView.as_view(), name='sincronizar'),
     # API
     path('api/', include(router.urls)),
 ]

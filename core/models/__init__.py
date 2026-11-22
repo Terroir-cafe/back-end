@@ -4,3 +4,4 @@ from .categoria import Categoria
 from .marca import Marca
 from .compra import Compra, ItensCompra
 from .notificacao import Notificacao
+from .operacao_offline import OperacaoOffline

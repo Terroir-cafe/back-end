@@ -107,7 +107,7 @@ class CompraCreateUpdateSerializer(ModelSerializer):
                 item['preco'] = item['produto'].preco
                 ItensCompra.objects.create(compra=compra, **item)
 
-        self.notificar_adicoes(compra, ((item, item['quantidade']) for item in itens))
+        notificar_adicoes(compra, ((item, item['quantidade']) for item in itens))
         compra.save()  # recalcula e grava o campo "total" (parte 40)
         return compra
 
@@ -122,23 +122,23 @@ class CompraCreateUpdateSerializer(ModelSerializer):
                 item['preco'] = item['produto'].preco
                 ItensCompra.objects.create(compra=compra, **item)
 
-            self.notificar_adicoes(
+            notificar_adicoes(
                 compra,
                 ((item, item['quantidade'] - anteriores.get(item['produto'].pk, 0)) for item in itens),
             )
 
         return super().update(compra, validated_data)
 
-    def notificar_adicoes(self, compra, adicoes):
-        Notificacao.objects.registrar(
-            Notificacao(
-                usuario_id=compra.usuario_id,
-                tipo=Notificacao.Tipo.CARRINHO,
-                produto=item['produto'],
-                mensagem=f'Adicionado ao carrinho: {item["produto"].nome} × {quantidade}.',
-            )
-            for item, quantidade in adicoes if quantidade > 0
+def notificar_adicoes(compra, adicoes):
+    Notificacao.objects.registrar(
+        Notificacao(
+            usuario_id=compra.usuario_id,
+            tipo=Notificacao.Tipo.CARRINHO,
+            produto=item['produto'],
+            mensagem=f'Adicionado ao carrinho: {item["produto"].nome} × {quantidade}.',
         )
+        for item, quantidade in adicoes if quantidade > 0
+    )
 
 
 class CompraListSerializer(ModelSerializer):
