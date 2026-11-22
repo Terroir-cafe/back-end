@@ -30,6 +30,12 @@ class ProdutoViewSet(ModelViewSet):
     search_fields = ['nome', 'descricao']
     ordering = ['nome']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action == 'retrieve':
+            return queryset.com_queda_de_preco()
+        return queryset
+
     def get_serializer_class(self):
         if self.action == 'list':
             return ProdutoListSerializer
@@ -51,7 +57,7 @@ class ProdutoViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         produto.preco = serializer.validated_data['preco']
-        produto.save()
+        produto.save(update_fields=['preco'])
 
         return Response(
             {
@@ -105,7 +111,7 @@ class ProdutoViewSet(ModelViewSet):
 
         quantidade_ajuste = serializer.validated_data['quantidade']
         produto.quantidade += quantidade_ajuste
-        produto.save()
+        produto.save(update_fields=['quantidade'])
 
         return Response(
             {'status': 'Quantidade ajustada com sucesso', 'novo_estoque': produto.quantidade}, status=status.HTTP_200_OK

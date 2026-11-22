@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import Compra
+from core.models import Compra, Produto
 from core.serializers import CompraCreateUpdateSerializer, CompraListSerializer, CompraSerializer
 
 
@@ -19,11 +19,12 @@ class CompraViewSet(ModelViewSet):
 
     def get_queryset(self):
         usuario = self.request.user
-        if usuario.is_superuser:
-            return Compra.objects.all()
-        if usuario.groups.filter(name='administradores'):
-            return Compra.objects.all()
-        return Compra.objects.filter(usuario=usuario)
+        compras = Compra.objects.all()
+        if self.action in {'update', 'partial_update', 'finalizar', 'destroy'}:
+            compras = compras.select_for_update()
+        if usuario.is_superuser or usuario.groups.filter(name='administradores').exists():
+            return compras
+        return compras.filter(usuario=usuario)
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -54,6 +55,7 @@ class CompraViewSet(ModelViewSet):
         return Response(CompraSerializer(compra, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(responses={200: CompraSerializer}, summary='Substituir os itens do carrinho')
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         compra = self.get_object()
@@ -63,6 +65,14 @@ class CompraViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         compra = serializer.save()
         return Response(CompraSerializer(compra, context={'request': request}).data)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        compra = self.get_object()
+        if compra.status != Compra.StatusCompra.CARRINHO:
+            raise ValidationError({'status': 'A compra faz parte do histórico.'})
+        self.perform_destroy(compra)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(
         request=None,
@@ -100,25 +110,31 @@ class CompraViewSet(ModelViewSet):
     def finalizar(self, request, pk=None):
         compra = self.get_object()
 
-        # Verifica se a compra já foi finalizada
-        if compra.status == Compra.StatusCompra.FINALIZADO:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data={'status': 'Compra já finalizada'})
+        if compra.status != Compra.StatusCompra.CARRINHO:
+            raise ValidationError({'status': 'A compra já foi finalizada.'})
 
-        for item in compra.itens.all():
-            # Valida se o estoque é suficiente para cada produto
-            if item.quantidade > item.produto.quantidade:
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={
-                        'status': 'Quantidade insuficiente',
-                        'produto': item.produto.nome,
-                        'quantidade_disponivel': item.produto.quantidade,
-                    },
-                )
+        itens = list(compra.itens.all())
+        if not itens:
+            raise ValidationError({'status': 'Adicione produtos antes de finalizar a compra.'})
 
-            # Atualiza o estoque dos produtos
-            item.produto.quantidade -= item.quantidade
-            item.produto.save()
+        produtos = {
+            produto.pk: produto
+            for produto in Produto.objects.select_for_update()
+            .filter(pk__in=[item.produto_id for item in itens]).order_by('pk')
+        }
+
+        for item in itens:
+            produto = produtos[item.produto_id]
+            if item.quantidade > produto.quantidade:
+                raise ValidationError({
+                    'status': 'Quantidade insuficiente',
+                    'produto': produto.nome,
+                    'quantidade_disponivel': produto.quantidade,
+                })
+            produto.quantidade -= item.quantidade
+
+        for produto in produtos.values():
+            produto.save(update_fields=['quantidade'])
 
         # Finaliza a compra: atualiza status
         compra.status = Compra.StatusCompra.FINALIZADO

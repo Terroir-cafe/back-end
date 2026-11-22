@@ -1,7 +1,21 @@
 from django.db import models, transaction
 
+from .notificacao import Notificacao
 from .produto import Produto
 from .user import User
+
+
+class CompraQuerySet(models.QuerySet):
+    @transaction.atomic
+    def update(self, **kwargs):
+        if 'status' not in kwargs:
+            return super().update(**kwargs)
+
+        anteriores = dict(self.order_by('pk').select_for_update().values_list('pk', 'status'))
+        atualizadas = super().update(**kwargs)
+        for compra in self.model.objects.filter(pk__in=anteriores):
+            compra.notificar_status(anteriores[compra.pk])
+        return atualizadas
 
 
 class Compra(models.Model):
@@ -26,6 +40,8 @@ class Compra(models.Model):
     tipo_pagamento = models.IntegerField(choices=TipoPagamento.choices, default=TipoPagamento.CARTAO_CREDITO)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    objects = CompraQuerySet.as_manager()
+
     @classmethod
     def obter_carrinho(cls, usuario, criar=False):
         """Retorna o carrinho em aberto do usuário (ou None, se não existir).
@@ -34,6 +50,7 @@ class Compra(models.Model):
         junta os itens de todos no mais antigo e apaga os extras.
         """
         with transaction.atomic():
+            User.objects.select_for_update(no_key=True).get(pk=usuario.pk)
             carrinhos = list(
                 cls.objects.select_for_update()
                 .filter(usuario=usuario, status=cls.StatusCompra.CARRINHO)
@@ -60,14 +77,33 @@ class Compra(models.Model):
 
             return principal
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
+        anterior = None
+        campos = kwargs.get('update_fields')
+        alterando_status = campos is None or 'status' in campos
         if self.pk:
+            if alterando_status:
+                anterior = (
+                    Compra.objects.select_for_update().filter(pk=self.pk).values_list('status', flat=True).first()
+                )
             self.total = sum(item.preco * item.quantidade for item in self.itens.all())
         super().save(*args, **kwargs)
+        if anterior is not None:
+            Compra.objects.get(pk=self.pk).notificar_status(anterior)
 
-    # @property
-    # def total(self):
-    # return sum(item.preco * item.quantidade for item in self.itens.all())
+    def notificar_status(self, anterior):
+        if anterior == self.status:
+            return
+        status_anterior = dict(self.StatusCompra.choices).get(anterior, anterior)
+        Notificacao.objects.registrar([Notificacao(
+            usuario_id=self.usuario_id,
+            tipo=Notificacao.Tipo.COMPRA,
+            mensagem=(
+                f'O status da compra #{self.pk} mudou de '
+                f'{status_anterior} para {self.get_status_display()}.'
+            ),
+        )])
 
 
 class ItensCompra(models.Model):

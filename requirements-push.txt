@@ -1,0 +1,2 @@
+# Dependência do processo enviar_push.
+pywebpush>=2.1,<3

@@ -4,46 +4,35 @@ from uploader.models import Image
 
 from .categoria import Categoria
 from .marca import Marca
+from .notificacao import Notificacao
 
 
 class ProdutoQuerySet(models.QuerySet):
+    def com_queda_de_preco(self):
+        ultimo_preco_distinto = (
+            HistoricoPreco.objects.filter(produto_id=models.OuterRef('pk'))
+            .exclude(preco=models.OuterRef('preco'))
+            .order_by('-data', '-pk')
+            .values('preco')[:1]
+        )
+        return self.alias(preco_comparacao=models.Subquery(ultimo_preco_distinto)).annotate(
+            preco_anterior=models.Case(
+                models.When(preco_comparacao__gt=models.F('preco'), then=models.F('preco_comparacao')),
+            )
+        )
+
     @transaction.atomic
     def update(self, **kwargs):
         if 'preco' not in kwargs:
             return super().update(**kwargs)
 
         # guarda os ids e preços antes, porque o filtro pode depender do próprio preço
-        antigos = dict(self.values_list('pk', 'preco'))
+        antigos = dict(self.order_by('pk').select_for_update().values_list('pk', 'preco'))
         linhas = super().update(**kwargs)
 
-        # relê do banco, pois o novo valor pode ser uma expressão (ex: F('preco') * 1.1)
-        novos = Produto.objects.filter(pk__in=antigos).values_list('pk', 'preco')
-        HistoricoPreco.objects.bulk_create(
-            [
-                HistoricoPreco(produto_id=pk, preco=preco)
-                for pk, preco in novos
-                if antigos[pk] != preco
-            ]
-        )
-        return linhas
-
-    @transaction.atomic
-    def bulk_update(self, objs, fields, *args, **kwargs):
-        objs = list(objs)
-        if 'preco' not in fields:
-            return super().bulk_update(objs, fields, *args, **kwargs)
-
-        antigos = dict(
-            Produto.objects.filter(pk__in=[o.pk for o in objs]).values_list('pk', 'preco')
-        )
-        linhas = super().bulk_update(objs, fields, *args, **kwargs)
-        HistoricoPreco.objects.bulk_create(
-            [
-                HistoricoPreco(produto_id=o.pk, preco=o.preco)
-                for o in objs
-                if antigos.get(o.pk) != o.preco
-            ]
-        )
+        # bulk_update também passa por este método, usando uma expressão CASE.
+        for produto in self.model.objects.filter(pk__in=antigos):
+            produto.registrar_preco(antigos[produto.pk])
         return linhas
 
     @transaction.atomic
@@ -82,17 +71,38 @@ class Produto(models.Model):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        preco_antigo = None
+        campos = kwargs.get('update_fields')
+        if campos is not None and 'preco' not in campos:
+            return super().save(*args, **kwargs)
+
+        anterior = None
         if self.pk:
-            preco_antigo = (
-                Produto.objects.filter(pk=self.pk).values_list('preco', flat=True).first()
-            )
+            anterior = Produto.objects.select_for_update().filter(pk=self.pk).values_list('preco', flat=True).first()
 
         super().save(*args, **kwargs)
+        # Lê o preço efetivamente salvo, inclusive com update_fields ou expressões.
+        Produto.objects.get(pk=self.pk).registrar_preco(anterior)
 
-        # grava no histórico na criação e sempre que o preço mudar
-        if preco_antigo is None or preco_antigo != self.preco:
-            self.historico_precos.create(preco=self.preco)
+    def registrar_preco(self, anterior):
+        if anterior == self.preco:
+            return
+        if anterior is not None and not self.historico_precos.exists():
+            self.historico_precos.create(preco=anterior)
+        self.historico_precos.create(preco=self.preco)
+        if anterior is None or anterior <= self.preco:
+            return
+
+        antigo = f'{anterior:.2f}'.replace('.', ',')
+        atual = f'{self.preco:.2f}'.replace('.', ',')
+        Notificacao.objects.registrar(
+            Notificacao(
+                usuario_id=usuario_id,
+                tipo=Notificacao.Tipo.PRECO,
+                produto=self,
+                mensagem=f'O preço de {self.nome} caiu de R$ {antigo} para R$ {atual}.',
+            )
+            for usuario_id in self.favoritos.values_list('pk', flat=True)
+        )
 
 
 class HistoricoPreco(models.Model):

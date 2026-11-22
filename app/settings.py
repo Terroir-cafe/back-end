@@ -169,3 +169,7 @@ DATABASES = {
         conn_max_age=600,
     )
 }
+
+WEB_PUSH_PUBLIC_KEY = os.getenv('WEB_PUSH_PUBLIC_KEY', '')
+WEB_PUSH_PRIVATE_KEY = os.getenv('WEB_PUSH_PRIVATE_KEY', '')
+WEB_PUSH_SUBJECT = os.getenv('WEB_PUSH_SUBJECT', '')

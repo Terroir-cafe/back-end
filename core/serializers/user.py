@@ -1,6 +1,7 @@
-from rest_framework.serializers import CharField, ModelSerializer, SlugRelatedField
+from rest_framework.serializers import CharField, ModelSerializer, RegexField, Serializer, SlugRelatedField, ValidationError
 
-from core.models import User
+from core.models import Notificacao, User
+from core.push import endpoint_permitido
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
 
@@ -30,6 +31,7 @@ class UserSerializer(ModelSerializer):
             'groups',
             'favoritos',
         )
+        read_only_fields = ('is_active', 'is_staff', 'is_superuser', 'last_login')
         depth = 1
 
 
@@ -48,3 +50,24 @@ class FavoritoSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ('favoritos',)
+
+
+class NotificacaoSerializer(ModelSerializer):
+    class Meta:
+        model = Notificacao
+        fields = ('id', 'tipo', 'mensagem', 'produto', 'criada_em', 'lida_em')
+
+
+class ChavesPushSerializer(Serializer):
+    p256dh = RegexField(r'^[A-Za-z0-9_-]{87}=?$', trim_whitespace=False)
+    auth = RegexField(r'^[A-Za-z0-9_-]{22}(?:==)?$', trim_whitespace=False)
+
+
+class DispositivoPushSerializer(Serializer):
+    endpoint = CharField(max_length=2048, trim_whitespace=False)
+    keys = ChavesPushSerializer()
+
+    def validate_endpoint(self, endpoint):
+        if not endpoint_permitido(endpoint):
+            raise ValidationError('Serviço de notificações incompatível.')
+        return endpoint

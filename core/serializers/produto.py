@@ -52,7 +52,12 @@ class ProdutoListSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class ProdutoFavoritoSerializer(ProdutoListSerializer):
+    preco_anterior = DecimalField(max_digits=10, decimal_places=2, read_only=True, allow_null=True)
+
+
 class ProdutoRetrieveSerializer(ModelSerializer):
+    preco_anterior = DecimalField(max_digits=10, decimal_places=2, read_only=True, allow_null=True)
     capa = ImageSerializer(required=False)
 
     class Meta:
