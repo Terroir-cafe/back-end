@@ -95,3 +95,32 @@ Este projeto está licenciado sob a [Licença GPL](https://www.gnu.org/licenses/
 
 
 
+
+## Notificações Web Push
+
+Os usuários podem ativar ou desativar os alertas em **Notificações → Alertas
+neste dispositivo**. O recurso requer que o site e a API sejam servidos por
+HTTPS em produção. Na compilação da interface, aponte `VITE_API_BASE_URL`
+para a URL HTTPS da API, incluindo `/api/`. No iPhone e no iPad, adicione o site à Tela de Início e abra
+o aplicativo pelo ícone para ativar os alertas.
+
+1. Com o ambiente do Django ativado, instale a dependência do worker com
+   `python -m pip install -r requirements-push.txt`. O script `build.sh`
+   já inclui essa instalação.
+2. Gere um par de chaves VAPID com `vapid --gen` e use
+   `vapid --applicationServerKey` para obter a chave pública. Configure as
+   seguintes variáveis no servidor web e no worker:
+   - `WEB_PUSH_PUBLIC_KEY` com a chave pública codificada para o navegador.
+   - `WEB_PUSH_PRIVATE_KEY` com o caminho do arquivo PEM privado ou com a
+     chave privada DER codificada em base64. Mantenha essa chave no servidor.
+   - `WEB_PUSH_SUBJECT` com o contato do operador, por exemplo
+     `mailto:contato@exemplo.com`.
+3. Rode `python manage.py migrate` e mantenha
+   `python manage.py enviar_push --continuo` em execução em um processo
+   separado. O tipo de processo `push` do Procfile executa esse comando.
+   Sem `--continuo`, o comando executa um lote e encerra, para uso em
+   tarefas agendadas.
+
+O push usa mensagens genéricas na tela bloqueada e abre a central de
+notificações para mostrar os detalhes após a autenticação. O worker
+descarta assinaturas expiradas e repete falhas temporárias de envio.

@@ -21,6 +21,7 @@ ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://localhost:8000',
+    'http://localhost:5173',
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -168,3 +169,7 @@ DATABASES = {
         conn_max_age=600,
     )
 }
+
+WEB_PUSH_PUBLIC_KEY = os.getenv('WEB_PUSH_PUBLIC_KEY', '')
+WEB_PUSH_PRIVATE_KEY = os.getenv('WEB_PUSH_PRIVATE_KEY', '')
+WEB_PUSH_SUBJECT = os.getenv('WEB_PUSH_SUBJECT', '')

@@ -14,12 +14,14 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from core.views import CategoriaViewSet, MarcaViewSet, ProdutoViewSet, UserRegistrationView, UserViewSet
+from core.views import CategoriaViewSet, CompraViewSet, MarcaViewSet, ProdutoViewSet, UserRegistrationView, UserViewSet
+from core.views.sincronizacao import SincronizacaoView
 from uploader.router import router as uploader_router
 
 router = DefaultRouter()
 
 router.register(r'usuarios', UserViewSet, basename='usuarios')
+router.register(r'compras', CompraViewSet, basename='compras')
 router.register(r'produtos', ProdutoViewSet, basename='produtos')
 router.register(r'categorias', CategoriaViewSet, basename='categorias')
 router.register(r'marcas', MarcaViewSet, basename='marcas')
@@ -45,6 +47,7 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     # Registro de usuários
     path('api/registro/', UserRegistrationView.as_view(), name='user_registration'),
+    path('api/usuarios/sincronizar/', SincronizacaoView.as_view(), name='sincronizar'),
     # API
     path('api/', include(router.urls)),
 ]

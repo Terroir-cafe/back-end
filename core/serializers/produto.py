@@ -1,6 +1,13 @@
-from rest_framework.serializers import ModelSerializer, SlugRelatedField
+from rest_framework.serializers import (
+    DecimalField,
+    IntegerField,
+    ModelSerializer,
+    Serializer,
+    SlugRelatedField,
+    ValidationError,
+)
 
-from core.models import Produto
+from core.models import HistoricoPreco, Produto
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
 
@@ -20,6 +27,16 @@ class ProdutoSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class ProdutoAlterarPrecoSerializer(Serializer):
+    preco = DecimalField(max_digits=7, decimal_places=2)
+
+    def validate_preco(self, preco):
+        """Valida se o preço é um valor positivo."""
+        if preco <= 0:
+            raise ValidationError('O preço deve ser um valor positivo.')
+        return preco
+
+
 class ProdutoListSerializer(ModelSerializer):
     capa_attachment_key = SlugRelatedField(
         source='capa',
@@ -35,10 +52,41 @@ class ProdutoListSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class ProdutoFavoritoSerializer(ProdutoListSerializer):
+    preco_anterior = DecimalField(max_digits=10, decimal_places=2, read_only=True, allow_null=True)
+
+
 class ProdutoRetrieveSerializer(ModelSerializer):
+    preco_anterior = DecimalField(max_digits=10, decimal_places=2, read_only=True, allow_null=True)
     capa = ImageSerializer(required=False)
 
     class Meta:
         model = Produto
         fields = '__all__'
         depth = 1
+
+
+class ProdutoMaisVendidoSerializer(ModelSerializer):
+    total_vendidos = IntegerField()
+
+    class Meta:
+        model = Produto
+        fields = ('id', 'nome', 'total_vendidos')
+
+
+class ProdutoAjustarEstoqueSerializer(Serializer):
+    quantidade = IntegerField()
+
+    def validate_quantidade(self, value):
+        produto = self.context.get('produto')
+        if produto:
+            nova_quantidade = produto.quantidade + value
+            if nova_quantidade < 0:
+                raise ValidationError('A quantidade em estoque não pode ser negativa.')
+        return value
+
+
+class HistoricoPrecoSerializer(ModelSerializer):
+    class Meta:
+        model = HistoricoPreco
+        fields = ('preco', 'data')

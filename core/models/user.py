@@ -8,9 +8,12 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
 from uploader.models import Image
+
+from .produto import Produto
 
 
 class UserManager(BaseUserManager):
@@ -18,12 +21,23 @@ class UserManager(BaseUserManager):
 
     use_in_migrations = True
 
+    @classmethod
+    def normalize_email(cls, email):
+        return super().normalize_email(email).strip().lower()
+
+    def get_by_natural_key(self, email):
+        return super().get_by_natural_key(self.normalize_email(email))
+
+    async def aget_by_natural_key(self, email):
+        return await super().aget_by_natural_key(self.normalize_email(email))
+
     def create_user(self, email, password=None, **extra_fields):
         """Create, save and return a new user."""
+        email = self.normalize_email(email)
         if not email:
             raise ValueError('Users must have an email address.')
 
-        user = self.model(email=self.normalize_email(email), **extra_fields)
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
 
@@ -63,6 +77,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
+        constraints = [models.UniqueConstraint(Lower('email'), name='usuario_email_unico_sem_maiusculas')]
 
     foto = models.ForeignKey(
         Image,
@@ -72,3 +87,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         default=None,
     )
+    favoritos = models.ManyToManyField(Produto, related_name='favoritos', blank=True)
+
+
+    def save(self, *args, **kwargs):
+        campos = kwargs.get('update_fields')
+        if campos is None or 'email' in campos:
+            self.email = self.__class__.objects.normalize_email(self.email)
+        return super().save(*args, **kwargs)

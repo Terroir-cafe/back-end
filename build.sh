@@ -6,7 +6,7 @@ set -o errexit
 pip install --upgrade pip
 
 # Instala as dependências
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-push.txt
 
 # Coleta os arquivos estáticos
 python manage.py collectstatic --no-input
