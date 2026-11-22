@@ -1,9 +1,12 @@
+from hashlib import sha256
 from uuid import uuid4
 
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
 from core.models import Compra, OperacaoOffline, Produto, User
+from core.models.notificacao import DispositivoPush, EntregaPush
 
 
 class SincronizacaoTests(APITestCase):
@@ -34,6 +37,30 @@ class SincronizacaoTests(APITestCase):
         self.assertEqual(resposta.status_code, 400)
         self.assertFalse(OperacaoOffline.objects.exists())
         self.assertFalse(Compra.objects.exists())
+
+    @override_settings(WEB_PUSH_PUBLIC_KEY='publica', WEB_PUSH_PRIVATE_KEY='privada', WEB_PUSH_SUBJECT='mailto:teste@example.com')
+    def test_push_ignora_dispositivo_de_origem_sem_perder_notificacao(self):
+        outra_conta = User.objects.create_user('outro@example.com')
+        for nome, usuario in [('origem', self.usuario), ('destino', self.usuario), ('outro', outra_conta)]:
+            endpoint = f'https://fcm.googleapis.com/fcm/send/{nome}'
+            DispositivoPush.objects.create(
+                usuario=usuario, endpoint=endpoint, identificador=sha256(endpoint.encode()).hexdigest(),
+            )
+
+        cabecalhos = {'X-Push-Endpoint': 'https://fcm.googleapis.com/fcm/send/origem'}
+        self.assertEqual(self.client.post(self.url, self.operacao, format='json', headers=cabecalhos).status_code, 200)
+        aumento = {**self.operacao, 'chave': str(uuid4()), 'tipo': 'quantidade', 'quantidade': 2}
+        self.assertEqual(self.client.post(self.url, aumento, format='json', headers=cabecalhos).status_code, 200)
+        compra = Compra.objects.get(usuario=self.usuario)
+        finalizar = reverse('compras-finalizar', args=[compra.pk])
+        self.assertEqual(self.client.post(finalizar, headers=cabecalhos).status_code, 200)
+
+        self.assertEqual(self.usuario.notificacoes.count(), 3)
+        self.assertFalse(outra_conta.notificacoes.exists())
+        self.assertEqual(
+            list(EntregaPush.objects.values_list('dispositivo__endpoint', flat=True)),
+            ['https://fcm.googleapis.com/fcm/send/destino'] * 3,
+        )
 
     def test_fila_de_outra_conta_e_finalizacao_sao_rejeitadas(self):
         outro = User.objects.create_user('outro@example.com')

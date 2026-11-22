@@ -45,7 +45,7 @@ def endpoint_permitido(endpoint):
         return False
 
 
-def enfileirar(notificacoes):
+def enfileirar(notificacoes, *, endpoint_origem=None):
     if not configurado():
         return
     por_usuario = {}
@@ -53,11 +53,13 @@ def enfileirar(notificacoes):
         if notificacao.pk:
             por_usuario.setdefault(notificacao.usuario_id, []).append(notificacao.pk)
 
-    dispositivos = DispositivoPush.objects.filter(usuario_id__in=por_usuario).values_list('pk', 'usuario_id')
+    dispositivos = DispositivoPush.objects.filter(usuario_id__in=por_usuario)
+    if endpoint_origem:
+        dispositivos = dispositivos.exclude(endpoint=endpoint_origem)
     agora = timezone.now()
     EntregaPush.objects.bulk_create(
         EntregaPush(dispositivo_id=dispositivo_id, notificacao_id=notificacao_id, tentar_em=agora)
-        for dispositivo_id, usuario_id in dispositivos
+        for dispositivo_id, usuario_id in dispositivos.values_list('pk', 'usuario_id')
         for notificacao_id in por_usuario[usuario_id]
     )
 
@@ -103,6 +105,7 @@ def enviar_pendentes(limite=20):
                     data=json.dumps({
                         'body': MENSAGENS.get(entrega.notificacao.tipo, 'Você tem uma nova notificação.'),
                         'tag': f'terroir-{entrega.notificacao_id}',
+                        'tipo': entrega.notificacao.tipo,
                     }),
                     vapid_private_key=settings.WEB_PUSH_PRIVATE_KEY,
                     vapid_claims={'sub': settings.WEB_PUSH_SUBJECT},

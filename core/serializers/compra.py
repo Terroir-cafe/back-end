@@ -81,6 +81,11 @@ class CompraCreateUpdateSerializer(ModelSerializer):
         model = Compra
         fields = ('usuario', 'itens')  # 'id' saiu daqui na parte 39
 
+    def notificar_adicoes(self, compra, adicoes):
+        request = self.context.get('request')
+        origem = request.headers.get('X-Push-Endpoint') if request else None
+        notificar_adicoes(compra, adicoes, endpoint_origem=origem)
+
     @transaction.atomic
     def create(self, validated_data):
         itens = validated_data.pop('itens')
@@ -107,7 +112,7 @@ class CompraCreateUpdateSerializer(ModelSerializer):
                 item['preco'] = item['produto'].preco
                 ItensCompra.objects.create(compra=compra, **item)
 
-        notificar_adicoes(compra, ((item, item['quantidade']) for item in itens))
+        self.notificar_adicoes(compra, ((item, item['quantidade']) for item in itens))
         compra.save()  # recalcula e grava o campo "total" (parte 40)
         return compra
 
@@ -122,15 +127,16 @@ class CompraCreateUpdateSerializer(ModelSerializer):
                 item['preco'] = item['produto'].preco
                 ItensCompra.objects.create(compra=compra, **item)
 
-            notificar_adicoes(
+            self.notificar_adicoes(
                 compra,
                 ((item, item['quantidade'] - anteriores.get(item['produto'].pk, 0)) for item in itens),
             )
 
         return super().update(compra, validated_data)
 
-def notificar_adicoes(compra, adicoes):
-    Notificacao.objects.registrar(
+
+def notificar_adicoes(compra, adicoes, *, endpoint_origem=None):
+    notificacoes = (
         Notificacao(
             usuario_id=compra.usuario_id,
             tipo=Notificacao.Tipo.CARRINHO,
@@ -139,6 +145,7 @@ def notificar_adicoes(compra, adicoes):
         )
         for item, quantidade in adicoes if quantidade > 0
     )
+    Notificacao.objects.registrar(notificacoes, endpoint_origem=endpoint_origem)
 
 
 class CompraListSerializer(ModelSerializer):

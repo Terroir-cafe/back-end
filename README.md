@@ -124,3 +124,7 @@ o aplicativo pelo ícone para ativar os alertas.
 O push usa mensagens genéricas na tela bloqueada e abre a central de
 notificações para mostrar os detalhes após a autenticação. O worker
 descarta assinaturas expiradas e repete falhas temporárias de envio.
+O histórico e o estado de leitura ficam na conta mesmo com os alertas
+desativados. Ao sair da conta, o navegador cancela a assinatura. Ao
+entrar novamente, os alertas são retomados se já estavam ativados para
+aquela conta no dispositivo e o navegador ainda permite notificações.

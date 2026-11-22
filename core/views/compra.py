@@ -138,6 +138,6 @@ class CompraViewSet(ModelViewSet):
 
         # Finaliza a compra: atualiza status
         compra.status = Compra.StatusCompra.FINALIZADO
-        compra.save()
+        compra.save(endpoint_origem=request.headers.get('X-Push-Endpoint'))
 
         return Response(status=status.HTTP_200_OK, data={'status': 'Compra finalizada'})
